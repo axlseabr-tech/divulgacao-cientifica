@@ -1,1 +1,1 @@
- https://axlseabr-tech.github.io/divulgacao-cientifica/Site/
+ https://axlseabr-tech.github.io/divulgacao-cientifica/
