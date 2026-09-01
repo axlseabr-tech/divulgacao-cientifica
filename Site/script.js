@@ -344,103 +344,380 @@ function initCommentsWall() {
   const feed = document.getElementById('comments-feed');
   if (!feed) return;
 
-  const defaultComments = [
-    {
-      name: "Prof. Marcos Vinícius Andrade",
-      role: "Professor(a) • Ensino Fundamental II",
-      stars: 5,
-      date: "Hoje às 15:42",
-      text: "Apliquei o Prompt Mestre 1 com meus alunos do 9º ano em Boa Vista. A estratégia de raciocínio inverso e veto a alucinações aritméticas fez toda a diferença. O modelo não errou os cálculos de volume de prismas nem cilindros. Excelente material!"
-    },
-    {
-      name: "Dra. Carolina Mendes",
-      role: "Pesquisador(a) • Educação Matemática",
-      stars: 5,
-      date: "Ontem às 18:20",
-      text: "A fundamentação epistemológica articulando Chevallard e Selwyn ficou impecável. É raro ver propostas de IA na educação com tanto rigor teórico e salvaguardas reais de auditoria docente. Parabéns pelo projeto!"
-    }
+  const STORAGE_KEY = 'scientific_portal_comments_v3';
+
+  const REACTIONS = [
+    { emoji: '👍', label: 'Gostei' },
+    { emoji: '❤️', label: 'Amei' },
+    { emoji: '🎉', label: 'Parabéns' },
+    { emoji: '🔥', label: 'Incrível' },
   ];
 
+  const defaultComments = [];
+
   function getComments() {
-    const saved = localStorage.getItem('scientific_portal_comments');
+    const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return defaultComments;
-      }
+      try { return JSON.parse(saved); } catch (e) {}
     }
     return defaultComments;
   }
 
-  function renderComments() {
-    const comments = getComments();
-    feed.innerHTML = '';
-
-    comments.forEach(item => {
-      const card = document.createElement('div');
-      card.className = 'comment-card-item';
-
-      const initials = item.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-      const starsStr = '★'.repeat(item.stars) + '☆'.repeat(5 - item.stars);
-
-      card.innerHTML = `
-        <div class="comment-header-row">
-          <div class="commenter-meta">
-            <div class="commenter-avatar">${initials}</div>
-            <div>
-              <div class="commenter-name">${escapeHTML(item.name)}</div>
-              <div class="commenter-role">${escapeHTML(item.role)} • <span style="opacity: 0.7;">${item.date}</span></div>
-            </div>
-          </div>
-          <div class="comment-stars" title="${item.stars} de 5 estrelas">${starsStr}</div>
-        </div>
-        <p class="comment-body-text">${escapeHTML(item.text)}</p>
-      `;
-
-      feed.appendChild(card);
-    });
+  function saveComments(comments) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(comments));
   }
 
   function escapeHTML(str) {
     const p = document.createElement('p');
-    p.textContent = str;
+    p.textContent = str || '';
     return p.innerHTML;
   }
 
+  function genId() {
+    return 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+  }
+
+  function nowStr() {
+    const now = new Date();
+    return `Hoje às ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+  }
+
+  /* ── Renderiza um reply-card (aceita reply de reply) ── */
+  function buildReplyCard(reply, parentId, replyIndex, comments, depth) {
+    const initials = reply.name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase();
+    const starsStr  = '★'.repeat(reply.stars||0) + '☆'.repeat(5-(reply.stars||0));
+
+    const div = document.createElement('div');
+    div.className = 'reply-card';
+    div.id = `reply-${parentId}-${replyIndex}`;
+
+    /* Reações do reply */
+    const reactionBtns = REACTIONS.map(r => {
+      const count = (reply.reactions && reply.reactions[r.emoji]) || 0;
+      const active = reply.userReactions && reply.userReactions.includes(r.emoji) ? 'active' : '';
+      return `<button class="reaction-btn ${active}"
+                data-parent="${parentId}" data-reply="${replyIndex}"
+                data-emoji="${r.emoji}" title="${r.label}" aria-label="${r.label}">
+                ${r.emoji} <span class="reaction-count">${count > 0 ? count : ''}</span>
+              </button>`;
+    }).join('');
+
+    /* Reply de reply — apenas 1 nível adicional de profundidade */
+    const canReplyAgain = depth < 2;
+    const replyBtn = canReplyAgain
+      ? `<button class="reply-toggle-btn" data-parent="${parentId}" data-reply="${replyIndex}" data-depth="${depth}">💬 Responder</button>`
+      : '';
+
+    div.innerHTML = `
+      <div class="comment-header-row">
+        <div class="commenter-meta">
+          <div class="commenter-avatar">${initials}</div>
+          <div>
+            <div class="commenter-name">${escapeHTML(reply.name)}</div>
+            <div class="commenter-role">${escapeHTML(reply.role||'')} ${reply.date ? `• <span style="opacity:0.7">${reply.date}</span>` : ''}</div>
+          </div>
+        </div>
+        ${reply.stars ? `<div class="comment-stars" title="${reply.stars} de 5">${starsStr}</div>` : ''}
+      </div>
+      <p class="comment-body-text">${escapeHTML(reply.text)}</p>
+      <div class="comment-actions-bar">
+        ${reactionBtns}
+        ${replyBtn}
+      </div>
+      <div class="reply-form-placeholder-${parentId}-${replyIndex}"></div>
+      <div class="nested-replies-${parentId}-${replyIndex}"></div>
+    `;
+
+    /* Sub-replies */
+    if (reply.replies && reply.replies.length > 0 && depth < 2) {
+      const nested = div.querySelector(`.nested-replies-${parentId}-${replyIndex}`);
+      const nestedSection = document.createElement('div');
+      nestedSection.className = 'replies-section';
+      reply.replies.forEach((sr, si) => {
+        nestedSection.appendChild(buildReplyCard(sr, `${parentId}-${replyIndex}`, si, comments, depth + 1));
+      });
+      nested.appendChild(nestedSection);
+    }
+
+    return div;
+  }
+
+  /* ── Renderiza um card principal ── */
+  function buildCard(item, index, comments) {
+    const initials = item.name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase();
+    const starsStr  = '★'.repeat(item.stars) + '☆'.repeat(5 - item.stars);
+
+    const card = document.createElement('div');
+    card.className = 'comment-card-item';
+    card.id = `card-${item.id}`;
+
+    /* Reações */
+    const reactionBtns = REACTIONS.map(r => {
+      const count  = (item.reactions && item.reactions[r.emoji]) || 0;
+      const active = item.userReactions && item.userReactions.includes(r.emoji) ? 'active' : '';
+      return `<button class="reaction-btn ${active}"
+                data-id="${item.id}" data-emoji="${r.emoji}"
+                title="${r.label}" aria-label="${r.label}">
+                ${r.emoji} <span class="reaction-count">${count > 0 ? count : ''}</span>
+              </button>`;
+    }).join('');
+
+    /* Badge lido */
+    const badgeLido = item.read
+      ? `<div class="badge-lido">✓ Lido pelo Autor</div>`
+      : '';
+
+    card.innerHTML = `
+      ${badgeLido}
+      <div class="comment-header-row" style="${item.read ? 'padding-right:120px' : ''}">
+        <div class="commenter-meta">
+          <div class="commenter-avatar">${initials}</div>
+          <div>
+            <div class="commenter-name">${escapeHTML(item.name)}</div>
+            <div class="commenter-role">${escapeHTML(item.role)} • <span style="opacity:0.7">${item.date}</span></div>
+          </div>
+        </div>
+        <div class="comment-stars" title="${item.stars} de 5 estrelas">${starsStr}</div>
+      </div>
+      <p class="comment-body-text">${escapeHTML(item.text)}</p>
+      <div class="comment-actions-bar">
+        ${reactionBtns}
+        <button class="reply-toggle-btn" data-id="${item.id}">💬 Responder</button>
+        ${!item.read ? `<button class="mark-read-btn" data-id="${item.id}">✓ Marcar como lido</button>` : ''}
+      </div>
+      <div class="reply-form-placeholder-${item.id}"></div>
+      <div class="replies-wrapper-${item.id}"></div>
+    `;
+
+    /* Renderiza replies existentes */
+    if (item.replies && item.replies.length > 0) {
+      const wrapper = card.querySelector(`.replies-wrapper-${item.id}`);
+      const section = document.createElement('div');
+      section.className = 'replies-section';
+      item.replies.forEach((r, ri) => {
+        section.appendChild(buildReplyCard(r, item.id, ri, comments, 1));
+      });
+      wrapper.appendChild(section);
+    }
+
+    return card;
+  }
+
+  /* ── Renderiza o feed completo ── */
+  function renderComments() {
+    const comments = getComments();
+    feed.innerHTML = '';
+
+    if (comments.length === 0) {
+      feed.innerHTML = `
+        <div style="text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 28px 16px; background: rgba(255,255,255,0.02); border-radius: var(--radius-lg); border: 1px dashed rgba(255,255,255,0.12);">
+          <span style="font-size: 1.6rem; display: block; margin-bottom: 8px;">✍️</span>
+          <strong>Mural limpo e pronto!</strong>
+          <p style="font-size: 0.82rem; margin-top: 4px; opacity: 0.8;">Seja o primeiro a publicar um depoimento ou avaliação sobre o portal.</p>
+        </div>
+      `;
+      return;
+    }
+
+    comments.forEach((item, index) => {
+      feed.appendChild(buildCard(item, index, comments));
+    });
+    attachListeners();
+  }
+
+  /* ── Mostra formulário inline de resposta ── */
+  function showReplyForm(placeholderSel, onSubmit, onCancel) {
+    const placeholder = document.querySelector(placeholderSel);
+    if (!placeholder || placeholder.querySelector('.reply-form-inline')) return;
+
+    const form = document.createElement('div');
+    form.className = 'reply-form-inline';
+    form.innerHTML = `
+      <input type="text" class="reply-name-in" placeholder="Seu nome" maxlength="60" required>
+      <textarea class="reply-text-in" rows="2" placeholder="Escreva sua resposta..." required></textarea>
+      <div class="reply-form-row">
+        <button class="reply-submit-btn">Enviar resposta</button>
+        <button class="reply-cancel-btn">Cancelar</button>
+      </div>
+    `;
+
+    form.querySelector('.reply-submit-btn').addEventListener('click', () => {
+      const nameVal = form.querySelector('.reply-name-in').value.trim();
+      const textVal = form.querySelector('.reply-text-in').value.trim();
+      if (!nameVal || !textVal) return;
+      onSubmit(nameVal, textVal);
+    });
+
+    form.querySelector('.reply-cancel-btn').addEventListener('click', () => {
+      form.remove();
+      if (onCancel) onCancel();
+    });
+
+    placeholder.appendChild(form);
+    form.querySelector('.reply-name-in').focus();
+  }
+
+  /* ── Listeners delegados ao feed ── */
+  function attachListeners() {
+
+    /* Reação em comentário principal */
+    feed.querySelectorAll('.reaction-btn[data-id]:not([data-parent])').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const comments = getComments();
+        const id       = btn.dataset.id;
+        const emoji    = btn.dataset.emoji;
+        const item     = comments.find(c => c.id === id);
+        if (!item) return;
+
+        item.reactions = item.reactions || {};
+        item.userReactions = item.userReactions || [];
+
+        if (item.userReactions.includes(emoji)) {
+          item.reactions[emoji] = Math.max(0, (item.reactions[emoji] || 1) - 1);
+          item.userReactions    = item.userReactions.filter(e => e !== emoji);
+        } else {
+          item.reactions[emoji] = (item.reactions[emoji] || 0) + 1;
+          item.userReactions.push(emoji);
+        }
+        saveComments(comments);
+        renderComments();
+      });
+    });
+
+    /* Reação em reply */
+    feed.querySelectorAll('.reaction-btn[data-parent]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const comments    = getComments();
+        const parentId    = btn.dataset.parent;
+        const replyIndex  = parseInt(btn.dataset.reply);
+        const emoji       = btn.dataset.emoji;
+
+        /* Suporte a nested: parentId pode ser "seed-1-0" */
+        const parts  = parentId.split('-');
+        const rootId = parts.slice(0, 2).join('-');
+        const root   = comments.find(c => c.id === rootId);
+        if (!root) return;
+
+        let reply;
+        if (parts.length === 2) {
+          reply = root.replies[replyIndex];
+        } else {
+          const midIndex = parseInt(parts[2]);
+          reply = root.replies[midIndex]?.replies?.[replyIndex];
+        }
+        if (!reply) return;
+
+        reply.reactions    = reply.reactions    || {};
+        reply.userReactions = reply.userReactions || [];
+
+        if (reply.userReactions.includes(emoji)) {
+          reply.reactions[emoji] = Math.max(0, (reply.reactions[emoji]||1) - 1);
+          reply.userReactions    = reply.userReactions.filter(e => e !== emoji);
+        } else {
+          reply.reactions[emoji] = (reply.reactions[emoji]||0) + 1;
+          reply.userReactions.push(emoji);
+        }
+        saveComments(comments);
+        renderComments();
+      });
+    });
+
+    /* Botão "Marcar como lido" */
+    feed.querySelectorAll('.mark-read-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const comments = getComments();
+        const item     = comments.find(c => c.id === btn.dataset.id);
+        if (item) { item.read = true; saveComments(comments); renderComments(); }
+      });
+    });
+
+    /* Botão Responder em comentário principal */
+    feed.querySelectorAll('.reply-toggle-btn[data-id]:not([data-parent])').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id  = btn.dataset.id;
+        showReplyForm(`.reply-form-placeholder-${id}`, (name, text) => {
+          const comments = getComments();
+          const item     = comments.find(c => c.id === id);
+          if (!item) return;
+          item.replies = item.replies || [];
+          item.replies.push({
+            id: genId(), name, role: 'Visitante', date: nowStr(),
+            text, reactions: {}, userReactions: [], replies: []
+          });
+          saveComments(comments);
+          renderComments();
+          showToast('Resposta publicada!');
+        });
+      });
+    });
+
+    /* Botão Responder em reply */
+    feed.querySelectorAll('.reply-toggle-btn[data-parent]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const parentId   = btn.dataset.parent;
+        const replyIndex = parseInt(btn.dataset.reply);
+        showReplyForm(`.reply-form-placeholder-${parentId}-${replyIndex}`, (name, text) => {
+          const comments = getComments();
+          const parts    = parentId.split('-');
+          const rootId   = parts.slice(0,2).join('-');
+          const root     = comments.find(c => c.id === rootId);
+          if (!root) return;
+
+          let targetReplies;
+          if (parts.length === 2) {
+            root.replies[replyIndex].replies = root.replies[replyIndex].replies || [];
+            targetReplies = root.replies[replyIndex].replies;
+          } else {
+            const midIndex = parseInt(parts[2]);
+            root.replies[midIndex].replies = root.replies[midIndex].replies || [];
+            targetReplies = root.replies[midIndex].replies;
+          }
+          targetReplies.push({
+            id: genId(), name, role: 'Visitante', date: nowStr(),
+            text, reactions: {}, userReactions: [], replies: []
+          });
+          saveComments(comments);
+          renderComments();
+          showToast('Resposta publicada!');
+        });
+      });
+    });
+  }
+
+  /* ── Envio do formulário principal ── */
   if (form) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const nameInput = document.getElementById('comment-name');
-      const roleInput = document.getElementById('comment-role');
-      const ratingInput = document.getElementById('comment-rating');
+      const nameInput        = document.getElementById('comment-name');
+      const roleInput        = document.getElementById('comment-role');
+      const ratingInput      = document.getElementById('comment-rating');
       const institutionInput = document.getElementById('comment-institution');
-      const messageInput = document.getElementById('comment-message');
+      const messageInput     = document.getElementById('comment-message');
 
-      const name = nameInput.value.trim();
-      const role = roleInput.value;
-      const inst = institutionInput.value.trim();
-      const rating = parseInt(ratingInput.value) || 5;
+      const name    = nameInput.value.trim();
+      const role    = roleInput.value;
+      const inst    = institutionInput.value.trim();
+      const rating  = parseInt(ratingInput.value) || 5;
       const message = messageInput.value.trim();
 
       if (!name || !message) return;
 
-      const fullRole = inst ? `${role} (${inst})` : role;
-      const now = new Date();
-      const dateFormatted = `Hoje às ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
+      const fullRole  = inst ? `${role} (${inst})` : role;
       const newComment = {
-        name: name,
-        role: fullRole,
+        id: genId(),
+        name, role: fullRole,
         stars: rating,
-        date: dateFormatted,
-        text: message
+        date: nowStr(),
+        text: message,
+        reactions: { '👍':0, '❤️':0, '🎉':0, '🔥':0 },
+        userReactions: [],
+        read: false,
+        replies: []
       };
 
-      const currentComments = getComments();
-      currentComments.unshift(newComment);
-      localStorage.setItem('scientific_portal_comments', JSON.stringify(currentComments));
-
+      const current = getComments();
+      current.unshift(newComment);
+      saveComments(current);
       renderComments();
       form.reset();
       showToast('Obrigado! Seu comentário foi publicado com sucesso no mural!');
