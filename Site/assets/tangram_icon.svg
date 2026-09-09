@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente de Fundo do Ícone -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0728" />
+      <stop offset="50%" stop-color="#180d38" />
+      <stop offset="100%" stop-color="#090417" />
+    </linearGradient>
+
+    <!-- Gradientes das 7 Peças do Tangram -->
+    <!-- 1. Triângulo Grande 1 (Ciano Elétrico) -->
+    <linearGradient id="gradTG1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="100%" stop-color="#4facfe" />
+    </linearGradient>
+
+    <!-- 2. Triângulo Grande 2 (Roxo Violeta Neon) -->
+    <linearGradient id="gradTG2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b92b27" />
+      <stop offset="30%" stop-color="#9b51e0" />
+      <stop offset="100%" stop-color="#6a11cb" />
+    </linearGradient>
+
+    <!-- 3. Triângulo Médio (Laranja Âmbar) -->
+    <linearGradient id="gradTM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff9900" />
+      <stop offset="100%" stop-color="#ff5500" />
+    </linearGradient>
+
+    <!-- 4. Quadrado Central (Verde Esmeralda) -->
+    <linearGradient id="gradSQ" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5a0" />
+      <stop offset="100%" stop-color="#00d9e9" />
+    </linearGradient>
+
+    <!-- 5. Paralelogramo (Rosa Choque / Magenta) -->
+    <linearGradient id="gradPAR" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f857a6" />
+      <stop offset="100%" stop-color="#ff5858" />
+    </linearGradient>
+
+    <!-- 6. Triângulo Pequeno 1 (Amarelo Ouro Solar) -->
+    <linearGradient id="gradTP1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe600" />
+      <stop offset="100%" stop-color="#ffb300" />
+    </linearGradient>
+
+    <!-- 7. Triângulo Pequeno 2 (Vermelho Rubi Coral) -->
+    <linearGradient id="gradTP2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff416c" />
+      <stop offset="100%" stop-color="#ff4b2b" />
+    </linearGradient>
+
+    <!-- Filtro Glow Neon -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- Fundo Squircle com Borda Iluminada -->
+  <rect x="24" y="24" width="464" height="464" rx="100" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.16)" stroke-width="3" filter="url(#cardShadow)" />
+  
+  <!-- Aura Central Difusa -->
+  <circle cx="256" cy="256" r="140" fill="#6a11cb" opacity="0.35" filter="url(#neonGlow)" />
+  <circle cx="256" cy="256" r="90" fill="#00f2fe" opacity="0.25" filter="url(#neonGlow)" />
+
+  <!-- Grupo Tangram Centralizado (Escala 300x300 dentro de 512x512) -->
+  <g transform="translate(106, 106)" stroke="rgba(255, 255, 255, 0.4)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+    
+    <!-- 1. Triângulo Grande 1 (Topo-Direita, Ciano) -->
+    <polygon points="0,0 300,0 150,150" fill="url(#gradTG1)" filter="drop-shadow(0 4px 12px rgba(0,242,254,0.35))" />
+
+    <!-- 2. Triângulo Grande 2 (Esquerda, Roxo) -->
+    <polygon points="0,0 0,300 150,150" fill="url(#gradTG2)" filter="drop-shadow(0 4px 12px rgba(155,81,224,0.35))" />
+
+    <!-- 3. Triângulo Pequeno 1 (Centro, Amarelo Solar) -->
+    <polygon points="150,150 225,225 150,225" fill="url(#gradTP1)" filter="drop-shadow(0 4px 10px rgba(255,230,0,0.35))" />
+
+    <!-- 4. Quadrado Central (Esmeralda) -->
+    <polygon points="75,225 150,150 150,225 75,300" fill="url(#gradSQ)" filter="drop-shadow(0 4px 10px rgba(0,245,160,0.35))" />
+
+    <!-- 5. Triângulo Pequeno 2 (Inferior Esquerdo, Coral) -->
+    <polygon points="0,300 75,225 75,300" fill="url(#gradTP2)" filter="drop-shadow(0 4px 10px rgba(255,65,108,0.35))" />
+
+    <!-- 6. Paralelogramo (Rosa Magenta) -->
+    <polygon points="225,75 300,0 300,150 225,225" fill="url(#gradPAR)" filter="drop-shadow(0 4px 10px rgba(248,87,166,0.35))" />
+
+    <!-- 7. Triângulo Médio (Inferior Direito, Âmbar) -->
+    <polygon points="150,300 300,150 300,300" fill="url(#gradTM)" filter="drop-shadow(0 4px 12px rgba(255,153,0,0.35))" />
+    
+  </g>
+
+  <!-- Brilho Reflexivo Superior -->
+  <path d="M 100 35 Q 256 75 412 35" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none" />
+</svg>
